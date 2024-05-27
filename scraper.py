@@ -53,9 +53,3 @@ def scrape_autotrader():
         driver.quit()
     
     return make_model_options
-
-# if __name__ == "__main__":
-#     make_model_options = scrape_autotrader()
-#     for make, models in make_model_options.items():
-#         print(f"Make: {make}")
-#         print(f"Models: {models}")

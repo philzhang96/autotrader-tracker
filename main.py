@@ -1,17 +1,9 @@
-from tkinter import Tk
-from gui import setup_gui, on_make_select
-from scraper import scrape_makes_and_models
+from scraper import scrape_autotrader
+from gui import create_gui
 
 def main():
-    # Create the Tkinter root window
-    root = Tk()
-    root.title("Car Selector")
-
-    # Set up the GUI
-    setup_gui(root)
-
-    # Start the Tkinter event loop
-    root.mainloop()
+    make_options, model_options = scrape_autotrader()
+    create_gui(make_options, model_options)
 
 if __name__ == "__main__":
     main()

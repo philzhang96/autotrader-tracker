@@ -26,8 +26,8 @@ from bs4 import BeautifulSoup
 def autotrader_scraper_selenium(url):
     # Set up Selenium WebDriver
     options = Options()
-    options.add_argument("--headless")  # Run in headless mode (no browser UI)
-    driver_service = Service("path_to_chromedriver")  # Update path to ChromeDriver
+    options.add_argument("_tt_enable_cookie=1")  # Run in headless mode (no browser UI)
+    driver_service = Service(r"C:\Windows\chromedriver-win64\chromedriver.exe")  # Update path to ChromeDriver
     driver = webdriver.Chrome(service=driver_service, options=options)
 
     # Fetch the page

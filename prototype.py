@@ -16,13 +16,16 @@ def autotrader_scraper(url):
         price_text = price_element.text.strip()
         print(f"Price: {price_text}")
 '''
-    
+import os
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
+EXCEL_FILE = r"E:\Coding Projects\autotrader_data.xlsx"
 
 def autotrader_scraper_selenium(urls):
     # Set up Selenium WebDriver
@@ -51,18 +54,46 @@ def autotrader_scraper_selenium(urls):
             except:
                 price_text = "Price not found"
 
+            # Getting the make of the car
+            try:
+                make_element = WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.XPATH, "//h1[@data-testid='advert-title']"))
+                )
+                make_text = make_element.text.strip()
+            except:
+                make_text = "Make not found"
+
             # Store the result
-            results.append({"url": url, "price": price_text})
+            results.append({"url": url, "make": make_text, "price": price_text})
 
         except Exception as e:
             print(f"Error scraping {url}: {e}")
-            results.append({"url": url, "price": "Error fetching price"})
+            results.append({"url": url, "make": "Error fetching make", "price": "Error fetching price"})
 
     driver.quit()
 
+    # Convert results to DataFrame
+    df_new = pd.DataFrame(results)
+
+    # Check if the Excel file already exists
+    if os.path.exists(EXCEL_FILE):
+        # Load existing data
+        df_existing = pd.read_excel(EXCEL_FILE)
+
+        # Append new data without duplicating existing rows
+        df_combined = pd.concat([df_existing, df_new]).drop_duplicates(subset=["URL"], keep="last")
+    else:
+        df_combined = df_new
+
+    # Save to Excel
+    df_combined.to_excel(EXCEL_FILE, index=False)
+
+    print(f"\n✅ Data saved to {EXCEL_FILE}")
+
+
     # Print results
     for result in results:
-        print(f"URL: {result['url']}\nPrice: {result['price']}\n")
+        print(f"URL: {result['url']}\nMake: {result['make']}\nPrice: {result['price']}\n")
 
 # Example URLs
 urls = [

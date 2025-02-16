@@ -1,0 +1,20 @@
+Features to be added:
+13/01/2025:
+    <s>Scrape price from hardcoded URL<s>
+
+12/02/2025:
+    Iterate this information such that historical prices can be tracked in the sheet
+    Change it such that the URLs no longer have to be hardcoded and can be added through some GUI
+
+16/02/2025:
+    Add feature to take the URLs from a single "Saved" URL from AutoTrader instead of having to hardcode them
+    If the listing has been deleted (as car has been sold or otherwise), update the CSV accordingly.
+
+
+
+
+
+Bugs to be fixed:
+16th Feb 2025:
+1. If the advert has a "Reserved Now" button, this seems to stop the scraper from working
+2. The scraper will be able to generate a CSV if  one already exists, need to fix this to update already existing CSV.

@@ -3,7 +3,7 @@ Features to be added:
     <s>Scrape price from hardcoded URL<s>
 
 12/02/2025:
-    Iterate this information such that historical prices can be tracked in the sheet
+    <s>Iterate this information such that historical prices can be tracked in the sheet<s>
     Change it such that the URLs no longer have to be hardcoded and can be added through some GUI
 
 16/02/2025:

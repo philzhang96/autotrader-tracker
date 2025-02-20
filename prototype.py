@@ -1,23 +1,6 @@
-'''
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
-
-url = "https://www.autotrader.co.uk/car-details/202501087851713?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ"
-
-def autotrader_scraper(url):
-    #Fetching the page's content
-    page = requests.get(url)
-    soup = BeautifulSoup(page.content, "lxml")
-    
-    #Extracting data from page
-    price_element = soup.find("h2", {"data-testid": "advert-price"})
-    if price_element:
-        price_text = price_element.text.strip()
-        print(f"Price: {price_text}")
-'''
 import os
 import pandas as pd
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -30,7 +13,6 @@ EXCEL_FILE = r"E:\Coding Projects\autotrader_data.xlsx"
 def autotrader_scraper_selenium(urls):
     # Set up Selenium WebDriver
     options = Options()
-    # Selenium must be run as "_tt_enable_cookie=1" otherwise will likely not work,
     options.add_argument("_tt_enable_cookie=1") 
     options.add_argument("--disable-blink-features=AutomationControlled")  # Helps bypass bot detection
     options.add_argument("--window-size=1920,1080")  # Set a normal window size to mimic human behavior
@@ -39,6 +21,7 @@ def autotrader_scraper_selenium(urls):
     driver = webdriver.Chrome(service=driver_service, options=options)
 
     results = []
+    today_date = datetime.today().strftime('%d-%m-%Y')  # Get today's date
 
     for url in urls:
         try:
@@ -64,11 +47,11 @@ def autotrader_scraper_selenium(urls):
                 make_text = "Make not found"
 
             # Store the result
-            results.append({"url": url, "make": make_text, "price": price_text})
+            results.append({"URL": url, "Make": make_text, today_date: price_text})
 
         except Exception as e:
             print(f"Error scraping {url}: {e}")
-            results.append({"url": url, "make": "Error fetching make", "price": "Error fetching price"})
+            results.append({"URL": url, "Make": "Error fetching make", today_date: "Error fetching price"})
 
     driver.quit()
 
@@ -78,10 +61,29 @@ def autotrader_scraper_selenium(urls):
     # Check if the Excel file already exists
     if os.path.exists(EXCEL_FILE):
         # Load existing data
-        df_existing = pd.read_excel(EXCEL_FILE)
+        df_existing = pd.read_excel(EXCEL_FILE, dtype=str)
+        
+        # Print actual column names (debugging step)
+        print("Original Columns in Excel:", df_existing.columns.tolist())
 
-        # Append new data without duplicating existing rows
-        df_combined = pd.concat([df_existing, df_new]).drop_duplicates(subset=["URL"], keep="last")
+        # Ensure column names match expectations
+        column_mapping = {
+            "url": "URL",
+            "make": "Make",
+            "price": today_date  # If there is an old "price" column, replace it with today's date
+        }
+
+        df_existing.rename(columns={col: column_mapping[col] for col in df_existing.columns if col in column_mapping}, inplace=True)
+
+        # Print updated column names
+        print("Updated Columns After Renaming:", df_existing.columns.tolist())
+
+        # Ensure required columns exist
+        if "URL" not in df_existing.columns or "Make" not in df_existing.columns:
+            raise KeyError(f"Existing Excel file still missing 'URL' or 'Make' after renaming. Found columns: {df_existing.columns.tolist()}")
+
+        # Merge new data with existing data
+        df_combined = df_existing.merge(df_new, on=["URL", "Make"], how="outer")
     else:
         df_combined = df_new
 
@@ -90,14 +92,12 @@ def autotrader_scraper_selenium(urls):
 
     print(f"\n✅ Data saved to {EXCEL_FILE}")
 
-
     # Print results
     for result in results:
-        print(f"URL: {result['url']}\nMake: {result['make']}\nPrice: {result['price']}\n")
+        print(f"URL: {result['URL']}\nMake: {result['Make']}\nPrice ({today_date}): {result[today_date]}\n")
 
 # Example URLs
 urls = [
-    "https://www.autotrader.co.uk/car-details/202501087851713?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
     "https://www.autotrader.co.uk/car-details/202409204270639?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
     "https://www.autotrader.co.uk/car-details/202502018634758?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
     "https://www.autotrader.co.uk/car-details/202502038698884?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
@@ -118,7 +118,6 @@ urls = [
     "https://www.autotrader.co.uk/car-details/202405139652007?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
     "https://www.autotrader.co.uk/car-details/202411015835018?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
     "https://www.autotrader.co.uk/car-details/202501037712516?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202501087851713?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
     "https://www.autotrader.co.uk/car-details/202501087851713?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
     "https://www.autotrader.co.uk/car-details/202501218242382?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
     "https://www.autotrader.co.uk/car-details/202501188152626?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",

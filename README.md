@@ -9,4 +9,7 @@ Changelog:
 12th Feb 2025 Update:
 1. Now able to scrape the price using URLs hardcoded into the code.
 
+20th Feb 2025:
+1(a). Now able to update csv file rather than creating a new one every time.
+1(b). CSV file now contains date data.
 

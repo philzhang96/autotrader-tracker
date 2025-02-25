@@ -17,6 +17,6 @@ Changelog:
 1. Exported the URLs into an excel file which the scraper now reads instead of having them hardcoded.
 
 25th Feb 2025:
-1. Added functionality that marks cars as either "Available" if they're available or "Not Available" if they have been sold.
+1. Added functionality that marks cars as "Sold" if they have been sold, the sold car's row is highlighted to emphasize this.
 2. Added functionality that removes sold cars from the input URL list.
 

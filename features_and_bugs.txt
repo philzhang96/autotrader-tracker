@@ -21,3 +21,6 @@ Bugs to be fixed:
 16th Feb 2025:
 1. If the advert has a "Reserved Now" button, this seems to stop the scraper from working
 2. <s>The scraper will be able to generate a CSV if  one already exists, need to fix this to update already existing CSV.<s>
+
+26th Feb 2025:
+1. Prototypeexcel4.py is having difficulty when creating a new CSV file, the titles of each column is produced but there is no information beneath the titles.

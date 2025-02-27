@@ -1,22 +1,3 @@
-12/02/2025:
-    <s>Scrape make and model from hardcoded URL<s>/n
-    <s>Export the info to an excel sheet<s>/n
-    <s>Iterate this information such that historical prices can be tracked in the sheet<s>
-    Change it such that the URLs no longer have to be hardcoded and can be added through some GUI
-
-
-Changelog:
-12th Feb 2025 Update:
-1. Now able to scrape the price using URLs hardcoded into the code.
-
-20th Feb 2025:
-1(a). Now able to update csv file rather than creating a new one every time.
-1(b). CSV file now contains date data.
-
-24th Feb 2025:
-1. Exported the URLs into an excel file which the scraper now reads instead of having them hardcoded.
-
-25th Feb 2025:
-1. Added functionality that marks cars as "Sold" if they have been sold, the sold car's row is highlighted to emphasize this.
-2. Added functionality that removes sold cars from the input URL list.
-
+This is a simple python script which takes in an input "urls_input.xlsx" which should be an excel file containing a column labelled "URL" containing a list of your saved AutoTrader listings.
+The first time the script is ran, it will create an output file "autotrader_data.xlsx" which will contain the URLs, Make, and Price of your listings with the current date.
+Any further runs will append to the already existing file a column with the current date as well as the most recent prices.

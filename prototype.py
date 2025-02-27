@@ -7,39 +7,52 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
 
-EXCEL_FILE = r"E:\Coding Projects\autotrader_data.xlsx"
+# Output and Input Excel files
+OUTPUT_EXCEL_FILE = r"E:\Coding Projects\autotrader_data.xlsx"
+INPUT_EXCEL_FILE = r"E:\Coding Projects\urls_input.xlsx"
 
 def autotrader_scraper_selenium(urls):
     # Set up Selenium WebDriver
     options = Options()
     options.add_argument("_tt_enable_cookie=1") 
-    options.add_argument("--disable-blink-features=AutomationControlled")  # Helps bypass bot detection
-    options.add_argument("--window-size=1920,1080")  # Set a normal window size to mimic human behavior
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--window-size=1920,1080")
 
-    driver_service = Service(r"C:\Windows\chromedriver-win64\chromedriver.exe")  # Update path to ChromeDriver
+    driver_service = Service(r"C:\Windows\chromedriver-win64\chromedriver.exe")  
     driver = webdriver.Chrome(service=driver_service, options=options)
 
     results = []
-    today_date = datetime.today().strftime('%d-%m-%Y')  # Get today's date
+    today_date = datetime.today().strftime('%d-%m-%Y')  
+    unavailable_urls = []
 
     for url in urls:
         try:
             print(f"Scraping: {url}")
             driver.get(url)
 
-            # Wait for the price element to appear
+            # Check if the advert is no longer available
             try:
-                price_element = WebDriverWait(driver, 15).until(
-                    EC.presence_of_element_located((By.XPATH, "//h2[@data-testid='advert-price']"))
+                WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'The advert you are looking for is no longer available')]"))
                 )
-                price_text = price_element.text.strip()
+                unavailable_urls.append(url)
+                price_text = "SOLD"  # Replace price with SOLD
             except:
-                price_text = "Price not found"
+                # Extract price if available
+                try:
+                    price_element = WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.XPATH, "//h2[@data-testid='advert-price']"))
+                    )
+                    price_text = price_element.text.strip()
+                except:
+                    price_text = "Price not found"
 
-            # Getting the make of the car
+            # Extract make
             try:
-                make_element = WebDriverWait(driver, 15).until(
+                make_element = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.XPATH, "//h1[@data-testid='advert-title']"))
                 )
                 make_text = make_element.text.strip()
@@ -58,73 +71,84 @@ def autotrader_scraper_selenium(urls):
     # Convert results to DataFrame
     df_new = pd.DataFrame(results)
 
-    # Check if the Excel file already exists
-    if os.path.exists(EXCEL_FILE):
-        # Load existing data
-        df_existing = pd.read_excel(EXCEL_FILE, dtype=str)
-        
-        # Print actual column names (debugging step)
-        print("Original Columns in Excel:", df_existing.columns.tolist())
-
-        # Ensure column names match expectations
-        column_mapping = {
-            "url": "URL",
-            "make": "Make",
-            "price": today_date  # If there is an old "price" column, replace it with today's date
-        }
-
-        df_existing.rename(columns={col: column_mapping[col] for col in df_existing.columns if col in column_mapping}, inplace=True)
-
-        # Print updated column names
-        print("Updated Columns After Renaming:", df_existing.columns.tolist())
-
-        # Ensure required columns exist
-        if "URL" not in df_existing.columns or "Make" not in df_existing.columns:
-            raise KeyError(f"Existing Excel file still missing 'URL' or 'Make' after renaming. Found columns: {df_existing.columns.tolist()}")
-
-        # Merge new data with existing data
+    # Load existing data or create a new one
+    if os.path.exists(OUTPUT_EXCEL_FILE):
+        df_existing = pd.read_excel(OUTPUT_EXCEL_FILE, dtype=str)
         df_combined = df_existing.merge(df_new, on=["URL", "Make"], how="outer")
     else:
         df_combined = df_new
 
-    # Save to Excel
-    df_combined.to_excel(EXCEL_FILE, index=False)
+    # Save updated data to Excel
+    df_combined.to_excel(OUTPUT_EXCEL_FILE, index=False)
 
-    print(f"\n✅ Data saved to {EXCEL_FILE}")
+    # Apply conditional formatting for SOLD listings
+    apply_red_highlight(OUTPUT_EXCEL_FILE, today_date)
 
-    # Print results
+    # Remove unavailable URLs from input list
+    if unavailable_urls:
+        remove_unavailable_urls(INPUT_EXCEL_FILE, unavailable_urls)
+
+    print(f"\n✅ Data saved to {OUTPUT_EXCEL_FILE}")
+
+    # Print results in terminal
     for result in results:
         print(f"URL: {result['URL']}\nMake: {result['Make']}\nPrice ({today_date}): {result[today_date]}\n")
 
-# Example URLs
-urls = [
-    "https://www.autotrader.co.uk/car-details/202409204270639?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202502018634758?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202502038698884?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202502058754268?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202501308577450?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202501308559520?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202407011312408?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202412067072278?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202410295712702?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202306058163586?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202412036942163?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202412077088745?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202411156319287?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202410084967287?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202411146282450?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202302204461549?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202410295706788?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202405139652007?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202411015835018?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202501037712516?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202501087851713?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202501218242382?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202501188152626?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202501238324828?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202501158046351?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ",
-    "https://www.autotrader.co.uk/car-details/202412317639076?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ"
-]
+def apply_red_highlight(filename, price_column):
+    """Applies red highlight to rows where the price is 'SOLD'."""
+    wb = load_workbook(filename)
+    ws = wb.active
 
-autotrader_scraper_selenium(urls)
+    # Identify the column index for today's price
+    price_col_index = None
+    for col_index, col in enumerate(ws.iter_cols(1, ws.max_column), start=1):
+        if col[0].value == price_column:
+            price_col_index = col_index
+            break
 
+    if price_col_index is None:
+        print(f"⚠️ Column '{price_column}' not found in the Excel file.")
+        return
+
+    # Define red fill style
+    red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+
+    # Apply formatting to rows where the price is 'SOLD'
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=price_col_index, max_col=price_col_index):
+        if row[0].value == "SOLD":
+            for cell in ws[row[0].row]:
+                cell.fill = red_fill
+
+    wb.save(filename)
+    wb.close()
+    print("✅ Red highlighting applied for 'SOLD' vehicles.")
+
+def remove_unavailable_urls(input_filename, unavailable_urls):
+    """Removes unavailable URLs from the input file."""
+    if not os.path.exists(input_filename):
+        print("⚠️ Input file does not exist.")
+        return
+
+    df_input = pd.read_excel(input_filename, dtype=str)
+
+    if "URL" not in df_input.columns:
+        print("⚠️ 'URL' column not found in input file.")
+        return
+
+    initial_count = len(df_input)
+
+    # Remove rows where the URL is in the unavailable list
+    df_filtered = df_input[~df_input["URL"].isin(unavailable_urls)]
+
+    removed_count = initial_count - len(df_filtered)
+    if removed_count > 0:
+        df_filtered.to_excel(input_filename, index=False)
+        print(f"✅ Removed {removed_count} unavailable URLs from {input_filename}")
+    else:
+        print("✅ No URLs needed to be removed.")
+
+if __name__ == '__main__':
+    # Read the input Excel file containing the URLs.
+    df_input = pd.read_excel(INPUT_EXCEL_FILE)
+    urls = df_input["URL"].tolist()
+    autotrader_scraper_selenium(urls)

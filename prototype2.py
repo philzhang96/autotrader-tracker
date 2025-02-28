@@ -1,4 +1,5 @@
 import os
+import re
 import pandas as pd
 from datetime import datetime
 from selenium import webdriver
@@ -13,6 +14,17 @@ from openpyxl.styles import PatternFill
 # Output and Input Excel files
 OUTPUT_EXCEL_FILE = r"E:\Coding Projects\autotrader_data.xlsx"
 INPUT_EXCEL_FILE = r"E:\Coding Projects\urls_input.xlsx"
+
+def clean_mileage(mileage_text):
+    """Extracts full mileage as a clean number, removing 'miles' and other text."""
+    mileage_text = mileage_text.replace(",", "")  # Remove commas
+    mileage_numbers = re.search(r'\d+', mileage_text)  # Extract the full mileage
+    return mileage_numbers.group(0) if mileage_numbers else "Mileage not found"
+
+def clean_registration_year(reg_text):
+    """Extracts the full registration year and suffix, e.g., '2024 (74 reg)'."""
+    reg_match = re.search(r'\d{4} \(\d{2} reg\)', reg_text)
+    return reg_match.group(0) if reg_match else "Year not found"
 
 def autotrader_scraper_selenium(urls):
     # Set up Selenium WebDriver
@@ -39,10 +51,11 @@ def autotrader_scraper_selenium(urls):
                     EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'The advert you are looking for is no longer available')]"))
                 )
                 unavailable_urls.append(url)
-                price_text = "SOLD"  # Replace price with SOLD
+                price_text = "SOLD"  
                 mileage_text = "N/A"
+                registration_year = "N/A"
             except:
-                # Extract price if available
+                # Extract price
                 try:
                     price_element = WebDriverWait(driver, 10).until(
                         EC.presence_of_element_located((By.XPATH, "//h2[@data-testid='advert-price']"))
@@ -56,25 +69,49 @@ def autotrader_scraper_selenium(urls):
                     mileage_element = WebDriverWait(driver, 10).until(
                         EC.presence_of_element_located((By.XPATH, "//li[contains(@class, 'at__sc-1n64n0d-9') and contains(@class, 'at__sc-1ebejir-1')]"))
                     )
-                    mileage_text = mileage_element.text.strip()
+                    mileage_text = clean_mileage(mileage_element.text.strip())  # Clean mileage
                 except:
                     mileage_text = "Mileage not found"
 
-            # Extract make
-            try:
-                make_element = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.XPATH, "//h1[@data-testid='advert-title']"))
-                )
-                make_text = make_element.text.strip()
-            except:
-                make_text = "Make not found"
+                # Extract registration year
+                try:
+                    reg_elements = WebDriverWait(driver, 10).until(
+                        EC.presence_of_all_elements_located((By.XPATH, "//ul[contains(@class, 'at__sc-1ebejir-0')]/li[contains(@class, 'at__sc-1n64n0d-9')]"))
+                    )
+                    if len(reg_elements) > 1:  # The second <li> usually contains the registration year
+                        registration_year = clean_registration_year(reg_elements[1].text.strip())
+                    else:
+                        registration_year = "Year not found"
+                except:
+                    registration_year = "Year not found"
+
+                # Extract make
+                try:
+                    make_element = WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.XPATH, "//h1[@data-testid='advert-title']"))
+                    )
+                    make_text = make_element.text.strip()
+                except:
+                    make_text = "Make not found"
 
             # Store the result
-            results.append({"URL": url, "Make": make_text, "Mileage": mileage_text, today_date: price_text})
+            results.append({
+                "URL": url,
+                "Make": make_text,
+                "Registration Year": registration_year,
+                "Mileage": mileage_text,
+                today_date: price_text
+            })
 
         except Exception as e:
             print(f"Error scraping {url}: {e}")
-            results.append({"URL": url, "Make": "Error fetching make", "Mileage": "Error fetching mileage", today_date: "Error fetching price"})
+            results.append({
+                "URL": url,
+                "Make": "Error fetching make",
+                "Registration Year": "Error fetching year",
+                "Mileage": "Error fetching mileage",
+                today_date: "Error fetching price"
+            })
 
     driver.quit()
 
@@ -85,16 +122,28 @@ def autotrader_scraper_selenium(urls):
     if os.path.exists(OUTPUT_EXCEL_FILE):
         df_existing = pd.read_excel(OUTPUT_EXCEL_FILE, dtype=str)
 
-        # Ensure only one Mileage column by updating values rather than creating a new one
+        # Ensure only one "Mileage" column
         if "Mileage" in df_existing.columns:
-            df_existing = df_existing.drop(columns=["Mileage"])  # Remove old mileage column to prevent duplicates
+            df_existing = df_existing.drop(columns=["Mileage"])
         
+        # Ensure only one "Registration Year" column
+        if "Registration Year" in df_existing.columns:
+            df_existing = df_existing.drop(columns=["Registration Year"])
+
         df_combined = df_existing.merge(df_new, on=["URL", "Make"], how="outer")
     else:
         df_combined = df_new
 
-    # Reorder columns to ensure 'Mileage' is next to 'Make'
-    columns_order = ["URL", "Make", "Mileage"] + [col for col in df_combined.columns if col not in ["URL", "Make", "Mileage"]]
+    # Ensure required columns exist before reordering
+    required_columns = ["URL", "Make", "Registration Year", "Mileage"]
+    for col in required_columns:
+        if col not in df_combined.columns:
+            df_combined[col] = "N/A"  # Add missing columns with default "N/A" values
+
+    # Reorder columns: "Mileage" remains next to "Registration Year"
+    columns_order = ["URL", "Make", "Registration Year", "Mileage"] + [
+        col for col in df_combined.columns if col not in ["URL", "Make", "Registration Year", "Mileage"]
+    ]
     df_combined = df_combined[columns_order]
 
     # Save updated data to Excel
@@ -108,10 +157,6 @@ def autotrader_scraper_selenium(urls):
         remove_unavailable_urls(INPUT_EXCEL_FILE, unavailable_urls)
 
     print(f"\n✅ Data saved to {OUTPUT_EXCEL_FILE}")
-
-    # Print results in terminal
-    for result in results:
-        print(f"URL: {result['URL']}\nMake: {result['Make']}\nMileage: {result['Mileage']}\nPrice ({today_date}): {result[today_date]}\n")
 
 def apply_red_highlight(filename, price_column):
     """Applies red highlight to rows where the price is 'SOLD'."""
@@ -154,20 +199,10 @@ def remove_unavailable_urls(input_filename, unavailable_urls):
         print("⚠️ 'URL' column not found in input file.")
         return
 
-    initial_count = len(df_input)
-
-    # Remove rows where the URL is in the unavailable list
     df_filtered = df_input[~df_input["URL"].isin(unavailable_urls)]
-
-    removed_count = initial_count - len(df_filtered)
-    if removed_count > 0:
-        df_filtered.to_excel(input_filename, index=False)
-        print(f"✅ Removed {removed_count} unavailable URLs from {input_filename}")
-    else:
-        print("✅ No URLs needed to be removed.")
+    df_filtered.to_excel(input_filename, index=False)
 
 if __name__ == '__main__':
-    # Read the input Excel file containing the URLs.
     df_input = pd.read_excel(INPUT_EXCEL_FILE)
     urls = df_input["URL"].tolist()
     autotrader_scraper_selenium(urls)

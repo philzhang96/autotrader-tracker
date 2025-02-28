@@ -7,7 +7,7 @@ from selenium.webdriver.chrome.options import Options
 
 def scrape_autotrader_by_url(url):
     chrome_options = Options()
-    chrome_options.add_argument(""_tt_enable_cookie=1"")  # Run in headless mode
+    chrome_options.add_argument("_tt_enable_cookie=1")  # Run in headless mode
     driver = webdriver.Chrome(options=chrome_options)
     
     try:

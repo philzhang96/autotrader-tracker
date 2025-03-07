@@ -1,29 +1,43 @@
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-def scrape_autotrader_info(url, timeout=10):
+def scrape_autotrader_info(driver, url, timeout=10):
     """
     Scrapes price, mileage, and registration year information from an AutoTrader car listing.
+    Reuses the provided WebDriver session to avoid reopening the browser.
     
     Args:
+        driver: Selenium WebDriver instance to reuse for multiple URLs.
         url (str): The URL of the AutoTrader car listing.
         timeout (int): Time in seconds to wait for elements to load.
         
     Returns:
-        dict: A dictionary containing the scraped information.
+        dict: A dictionary containing the scraped information or default values if the advert is sold.
     """
-    # Initialize WebDriver
-    driver = webdriver.Chrome()
-    driver.implicitly_wait(timeout)
-    
     try:
-        # Open the URL
         driver.get(url)
+        
+        # Check if the advert is no longer available
+        try:
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located(
+                    (By.XPATH, "//*[contains(text(), 'The advert you are looking for is no longer available')]")
+                )
+            )
+            print(f"Advert no longer available: {url}")
+            return {
+                "URL": url,
+                "Price": "SOLD",
+                "Miles": "N/A",
+                "Registration Year": "N/A"
+            }
+        except Exception:
+            pass  # Continue with normal scraping if not sold
         
         # Define the XPaths for the required information
         xpaths = {
+            "Make": '//h1[@data-testid="advert-title"]',
             "Price": '//h2[contains(text(), "£")]',
             "Miles": '//section//ul//li[contains(text(), "miles")]',
             "Registration Year": '//section//ul//li[contains(text(), "reg")]'
@@ -39,10 +53,11 @@ def scrape_autotrader_info(url, timeout=10):
                 car_info[key] = element.text
                 print(f"{key}: {element.text}")
             except Exception as e:
-                car_info[key] = None
+                car_info[key] = "N/A"
                 print(f"Could not find {key}: {e}")
                 
         return car_info
     
-    finally:
-        driver.quit()
+    except Exception as e:
+        print(f"Error scraping {url}: {e}")
+        return None

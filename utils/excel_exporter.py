@@ -5,6 +5,7 @@ import os
 def export_price_to_excel(data, output_file="car_info.xlsx"):
     """
     Exports only the price data to an Excel file, appending the data to an existing file if it exists.
+    If the advert is sold, the price column will display "SOLD".
     
     Args:
         data (list of dict): The data to export, where each dict contains 'URL', 'Price', and other details.
@@ -15,18 +16,12 @@ def export_price_to_excel(data, output_file="car_info.xlsx"):
         return
     
     # Generate the column name for the price using the current date
-    date_str = datetime.now().strftime('%d-%m-%Y')
+    date_str = datetime.now().strftime('%d/%m/%Y')
     price_column = f"{date_str}"
     
     # Create a DataFrame with all data, including the price column
     new_data = pd.DataFrame(data)
     
-    # Clean the price data by removing "£" and commas, converting to numeric
-    new_data["Price"] = pd.to_numeric(
-        new_data["Price"].replace('[£,]', '', regex=True), 
-        errors='coerce'
-    )
-
     # If the file exists, merge new price data with existing data
     if os.path.exists(output_file):
         existing_data = pd.read_excel(output_file)

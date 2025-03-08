@@ -37,7 +37,7 @@ def scrape_autotrader_info(driver, url, timeout=10):
         
         # Define the XPaths for the required information
         xpaths = {
-            "Make": '//h1[@data-testid="advert-title"]',
+            "Make": "//h1[@data-testid='advert-title']",
             "Price": '//h2[contains(text(), "£")]',
             "Miles": '//section//ul//li[contains(text(), "miles")]',
             "Registration Year": '//section//ul//li[contains(text(), "reg")]'

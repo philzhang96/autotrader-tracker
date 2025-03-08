@@ -3,6 +3,7 @@ from utils.autotrader_scraper import scrape_autotrader_info
 from utils.excel_exporter import export_price_to_excel
 from utils.data_importer import read_urls_from_excel
 from utils.url_manager import remove_sold_urls
+from utils.excel_manager import manage_excel_data
 
 # Read URLs from an Excel file
 urls = read_urls_from_excel(input_file="urls.xlsx", column_name="URL")
@@ -24,6 +25,8 @@ for url in urls:
 
 # Export only the price data to the Excel file
 export_price_to_excel(all_car_data, output_file="car_info.xlsx")
+
+manage_excel_data(input_file="car_info.xlsx")
 
 # Remove sold URLs from the input Excel file
 remove_sold_urls(input_file="urls.xlsx", output_file="urls.xlsx", sold_urls=sold_urls)

@@ -21,6 +21,12 @@ def export_price_to_excel(data, output_file="car_info.xlsx"):
     # Create a DataFrame with all data, including the price column
     new_data = pd.DataFrame(data)
     
+    # Clean the price data by removing "£" and commas, converting to numeric
+    new_data["Price"] = pd.to_numeric(
+        new_data["Price"].replace('[£,]', '', regex=True), 
+        errors='coerce'
+    )
+
     # If the file exists, merge new price data with existing data
     if os.path.exists(output_file):
         existing_data = pd.read_excel(output_file)

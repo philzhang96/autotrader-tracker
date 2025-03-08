@@ -1,71 +1,35 @@
-import re
-import time
-from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from utils.autotrader_scraper import scrape_autotrader_info
+from utils.excel_exporter import export_price_to_excel
+from utils.data_importer import read_urls_from_excel
+from utils.url_manager import remove_sold_urls
 
 
-def scrape_autotrader_by_url(url):
-    chrome_options = Options()
-    chrome_options.add_argument("_tt_enable_cookie=1")  # Run in headless mode
-    driver = webdriver.Chrome(options=chrome_options)
-    
-    try:
-        driver.get(url)
-        print(f"Accessing {url}...")
-        
-        time.sleep(5)  # Allow page to load
-        
-        source = driver.page_source
-        content = BeautifulSoup(source, "html.parser")
-        
-        # Extract car listings
-        articles = content.findAll("section", attrs={"data-testid": "trader-seller-listing"})
-        
-        data = []
-        for article in articles:
-            details = {
-                "name": None,
-                "year": None,
-                "mileage": None,
-                "owners": None,
-            }
-            
-            # Extract name
-            details["name"] = article.find("h3", attrs={"data-testid": "listing-title"}).text.strip()
-            
-            # Extract specs (year, mileage, owners)
-            specs_list = article.find("ul", attrs={"data-testid": "search-listing-specs"})
-            if specs_list:
-                for spec in specs_list.find_all("li"):
-                    if "reg" in spec.text.lower():  # Year
-                        details["year"] = re.sub(r"\s+\(.*?\)", "", spec.text.strip())  # Clean " (xx reg)" part
-                    elif "miles" in spec.text.lower():  # Mileage
-                        details["mileage"] = spec.text.strip().replace(",", "").replace(" miles", "")
-                    elif "owner" in spec.text.lower():  # Owners
-                        details["owners"] = re.search(r"(\d+)\sowner", spec.text.lower())
-                        if details["owners"]:
-                            details["owners"] = details["owners"].group(1)
-                        else:
-                            details["owners"] = "Unknown"
-            
-            data.append(details)
-        
-        print(f"Scraped {len(data)} listings.")
-        return data
-    
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return []
-    
-    finally:
-        driver.quit()
+# Read URLs from an Excel file
+urls = read_urls_from_excel(input_file="urls.xlsx", column_name="URL")
+
+# Initialize a single WebDriver instance
+options = webdriver.ChromeOptions()
+driver = webdriver.Chrome(options=options)
+
+# Scrape all URLs and collect data using the same driver session
+all_car_data = []
+sold_urls = []
+
+for url in urls:
+    car_info = scrape_autotrader_info(driver, url)
+    if car_info:
+        all_car_data.append(car_info)
+        if car_info["Price"] == "SOLD":
+            sold_urls.append(url)
+
+# Export only the price data to the Excel file
+export_price_to_excel(all_car_data, output_file="car_info.xlsx")
 
 
-if __name__ == "__main__":
-    # Example URL
-    url = "https://www.autotrader.co.uk/car-details/202501188152626?fromSavedAds=true&advertising-location=at_cars&sort=relevance&postcode=CB58TJ"
-    results = scrape_autotrader_by_url(url)
-    
-    for result in results:
-        print(result)
+
+# Remove sold URLs from the input Excel file
+remove_sold_urls(input_file="urls.xlsx", output_file="urls.xlsx", sold_urls=sold_urls)
+
+# Close the WebDriver after all scrapes are complete
+driver.quit()

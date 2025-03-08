@@ -1,6 +1,7 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import re
 
 def scrape_autotrader_info(driver, url, timeout=10):
     """
@@ -29,7 +30,7 @@ def scrape_autotrader_info(driver, url, timeout=10):
             return {
                 "URL": url,
                 "Price": "SOLD",
-                "Miles": "N/A",
+                "Mileage": "N/A",
                 "Registration Year": "N/A"
             }
         except Exception:
@@ -39,7 +40,7 @@ def scrape_autotrader_info(driver, url, timeout=10):
         xpaths = {
             "Make": "//h1[@data-testid='advert-title']",
             "Price": '//h2[contains(text(), "£")]',
-            "Miles": '//section//ul//li[contains(text(), "miles")]',
+            "Mileage": '//section//ul//li[contains(text(), "miles")]',
             "Registration Year": '//section//ul//li[contains(text(), "reg")]'
         }
         
@@ -50,8 +51,16 @@ def scrape_autotrader_info(driver, url, timeout=10):
                 element = WebDriverWait(driver, timeout).until(
                     EC.visibility_of_element_located((By.XPATH, xpath))
                 )
-                car_info[key] = element.text
-                print(f"{key}: {element.text}")
+                text = element.text
+                
+                # If the key is "Mileage", extract only the numeric value and convert to int
+                if key == "Mileage":
+                    match = re.search(r"(\d+,?\d*)", text)
+                    if match:
+                        text = int(match.group(0).replace(",", ""))
+                
+                car_info[key] = text
+                print(f"{key}: {text}")
             except Exception as e:
                 car_info[key] = "N/A"
                 print(f"Could not find {key}: {e}")

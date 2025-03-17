@@ -12,32 +12,49 @@ def export_price_to_excel(data, output_file="car_info.xlsx"):
     
     new_data = pd.DataFrame(data)
     
-    # Ensure the column is correctly named as Mileage
+    # Ensure consistency in column naming
     new_data = new_data.rename(columns={"Miles": "Mileage"})
 
+    static_columns = ["URL", "Make", "Mileage", "Registration Year"]
+    
+    # Extract only relevant static data
+    static_data = new_data[static_columns].drop_duplicates()
+
+    # Extract only price data
+    price_data = new_data[["URL", "Price"]].rename(columns={"Price": price_column})
+
     if os.path.exists(output_file):
-        existing_data = pd.read_excel(output_file)
+        try:
+            existing_data = pd.read_excel(output_file)
 
-        # Extract only the static columns from new data
-        static_columns = ["URL", "Make", "Mileage", "Registration Year"]
-        static_data = new_data[static_columns]
+            # Drop fully empty rows to avoid pandas warning
+            existing_data = existing_data.dropna(how="all")
 
-        # Prepare price data with the date as the column name
-        price_data = new_data[["URL", "Price"]].rename(columns={"Price": price_column})
+            # Ensure "URL" column exists for merging
+            if "URL" not in existing_data.columns:
+                existing_data["URL"] = None  # Ensures proper merge
 
-        # Keep only URLs that are not already in the existing data
-        new_static_data = static_data[~static_data["URL"].isin(existing_data["URL"])]
+            # Merge price updates with existing data
+            combined_data = pd.merge(existing_data, price_data, on="URL", how="left")
 
-        # Concatenate the new static data only if it's not already present
-        combined_data = pd.concat([existing_data, new_static_data], ignore_index=True)
+            # Identify new URLs not in existing data
+            new_static_data = static_data[~static_data["URL"].isin(existing_data["URL"])]
 
-        # Merge the new price data without duplicating static columns
-        combined_data = pd.merge(combined_data, price_data, on="URL", how="left")
+            if not new_static_data.empty:
+                combined_data = pd.concat([combined_data, new_static_data], ignore_index=True)
+
+        except Exception as e:
+            print(f"Error reading {output_file}: {e}")
+            combined_data = static_data  # Fallback: start fresh if file is corrupt
+
     else:
-        # First run: keep all columns and initialize the price column
-        columns = ["URL", "Make", "Mileage", "Registration Year", "Price"]
-        new_data = new_data[columns].rename(columns={"Price": price_column})
+        # If file does not exist, create from scratch
+        new_data = new_data[static_columns + ["Price"]].rename(columns={"Price": price_column})
         combined_data = new_data
 
-    combined_data.to_excel(output_file, index=False)
-    print(f"Data exported to {output_file}")
+    try:
+        # Save the final DataFrame to Excel
+        combined_data.to_excel(output_file, index=False)
+        print(f"Data successfully exported to {output_file}")
+    except Exception as e:
+        print(f"Error writing to {output_file}: {e}")

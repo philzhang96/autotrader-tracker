@@ -21,7 +21,7 @@ def scrape_autotrader_info(driver, url, timeout=10):
         
         # Check if the advert is no longer available
         try:
-            WebDriverWait(driver, 5).until(
+            WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located(
                     (By.XPATH, "//*[contains(text(), 'The advert you are looking for is no longer available')]")
                 )
